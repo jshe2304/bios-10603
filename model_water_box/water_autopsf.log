@@ -1,0 +1,8 @@
+#Original PDB file: 
+#PDBSTART
+CRYST1    0.000    0.000    0.000  90.00  90.00  90.00 P 1           1
+ATOM      1  O   HOH A  89      42.240  24.744  25.707  1.00 31.34           O
+END
+
+#PDBEND
+#Creating chain AW1: 0 residues from indices 1 to 0 in original file. Patches: Nter none, Cter none

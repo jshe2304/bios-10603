@@ -1,0 +1,90 @@
+# Water Box
+# NAME: Jay Shen
+# DATE: 1/24/2023
+
+#---------------Temperature -----------------------------------------------------------------
+set temperature		270
+
+#---------------NPT---------------------------------------------------------------------------
+Langevin				on				#Use Langevin dynamics.
+LangevinTemp			$temperature	#Temperature in the Langevin calculations. (K)
+LangevinDamping			5				#Damping Coefficient at 1/ps
+LangevinPiston			on				#use Langevin piston pressure control.
+LangevinPistonTarget	1.01325			#Target Pressure (bar)
+LangevinPistonPeriod	100				#Oscillation Period (fs)
+LangevinPistonDecay		50				#Damping time scale (fs)
+LangevinPistonTemp		$temperature	#Noise Temperature. Should be the same as target temperature
+useFlexibleCell			no				#Anisotropic cell fluctuations. NAMD allows the 3 dimensions
+										#of periodic cell to fluctuate independently.
+useConstantRatio		no				#Keeps the ratio of the x-y plane constant.
+										#To keep the shape a square cylinder.
+margin					1				#extra length in patch dimension
+useGroupPressure		no				#nedded for rigidBonds
+
+#---------------Timestep parameters----------------------------------------------------
+timestep			1		#Number of femtoseconds between each step.
+stepspercycle		20		#Number of timesteps in each cycle.
+
+#---------------Input Files------------------------------------------------------------
+coordinates   	water_box_centered.pdb 			#Put your waterbox.pdb file here
+structure     	H2O-Solvate.psf 			#Use your waterbox.psf file here
+Temperature		$temperature			#Inital Temperature (K). Cannot be used with binvelocities.
+
+#---------------------Output Controls-------------------------------------------------------
+outputname   H2O-mini-heatup-equil-NPT1 #Output name prefix
+restartfreq		500		    #Number of timesteps between writing restart files.
+restartname  H2O-mini-heatup-equil-NPT1 # No need to change
+dcdfreq		     2000		   #Number of timesteps between writing to the DCD file.
+XSTFreq		     1000		   #Number of timesteps between writing to the xst file.
+OutputEnergies	 40			   #Time between energy output.
+
+#---------------Parameter Files---------------------------------------------------------
+paraTypeCharmm          on           #Specifies if the parameters are in the CHARMM Format.
+parameters		toppar_water_ions_esmael.str        #Input the name of the parameter file here
+parameters		par_all36_prot.prm
+
+#---------------NonBonded Interactions--------------------------------------------------
+exclude			scaled1-4		#Types of bonds to leave out of nonbonded interactions.
+1-4scaling		1				#Scaling factor for 1-4 nonbonded interactions.
+switching		on				#Off=Truncated cutoff.
+								#On=Smoothing functions are applied.
+								#If on, the switchdist must be defined.
+cutoff			12				#Local interaction distance between both
+								#electostatic and van der Waals interactions
+switchdist		10				#Distance at which to activate switching function.
+								#Less or equal to cutoff.
+pairlistdist	13.5			#Distance between pairs for inclusion in pair list.
+								#Should be 1 greater then cutoff.
+nonBondedFreq			2		#Number of timesteps between nonbonded evaluation
+fullElectFrequency		4		#Number of timesteps between full electrostatic evaluations
+
+#---------------Wrapping ------------------------------------------------------------------
+wrapAll		      on				#Turn on all atom wrapping.
+
+#---------------Periodic boundary Conditions ----------------------------------------------
+cellBasisVector1   71.325996   0.00    0.00		#Basis vector for periodic boundary
+cellBasisVector2   0.00   70.945999   0.00     #Basis vector for periodic boundary
+cellBasisVector3   0.00   0.00    70.00		#Basis vector for periodic boundary
+cellOrigin	   	   0.00   0.00     0.00	 	#The *center* of the cell
+
+#---------------PME Parameters -------------------------------------------------------------
+PME		    yes
+PMEGridSpacing	    0.95
+
+#---------------Execution Script------------------------------------------------------------
+# Run minimization on our system
+minimize 1000
+
+# Gradually heatup the system from the initial temperature to 300K in increments of 5K per 10,000 steps. 
+# The reason we let the system run for 10,000 steps at each new temperature is to allow the system to equilibrate. 
+
+for { set temperature 270 } { $temperature <= 300000 } { incr temperature 5000 } {
+	reinitvels		$temperature
+	langevinTemp	$temperature
+	langevinPistonTemp	$temperature
+	run				10000
+}
+
+# Do a produciton run for 1 ns.
+run 1000000
+
